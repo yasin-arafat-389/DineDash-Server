@@ -27,6 +27,7 @@ const client = new MongoClient(uri, {
 async function run() {
   const providersCollection = client.db("DineDash").collection("providers");
   const restaurantsCollection = client.db("DineDash").collection("restaurants");
+  const foodsCollection = client.db("DineDash").collection("foods");
 
   try {
     // Get Provider names and images API
@@ -39,6 +40,27 @@ async function run() {
     app.get("/restaurants", async (req, res) => {
       const result = await restaurantsCollection.find().toArray();
       res.send(result);
+    });
+
+    // Get single restaurant data
+    app.get("/restaurantData", async (req, res) => {
+      let name = req.query.name;
+      let query = { pathname: name };
+      const result = await restaurantsCollection.findOne(query);
+      res.send(result);
+    });
+
+    // Get all food from foods collection
+    app.get("/foods", async (req, res) => {
+      const result = await foodsCollection.find().toArray();
+      res.send(result);
+    });
+
+    // Get all restaurant specific food query by name
+    app.get("/restaurant", async (req, res) => {
+      const name = req.query.name;
+      const foods = await foodsCollection.find({ restaurant: name }).toArray();
+      res.status(200).json(foods);
     });
 
     console.log(
