@@ -56,6 +56,22 @@ async function run() {
       res.send(result);
     });
 
+    // Get calculated food counts for pagination
+    app.get("/foods/pagination", async (req, res) => {
+      const query = req.query;
+      const page = query.page;
+
+      const pageNumber = parseInt(page);
+      const perPage = 6;
+      const skip = pageNumber * perPage;
+
+      const foods = foodsCollection.find().skip(skip).limit(perPage);
+      const result = await foods.toArray();
+      const foodCounts = await foodsCollection.countDocuments();
+
+      res.json({ result, foodCounts });
+    });
+
     // Get all restaurant specific food query by name
     app.get("/restaurant", async (req, res) => {
       const name = req.query.name;
