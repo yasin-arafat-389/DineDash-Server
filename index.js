@@ -61,13 +61,28 @@ async function run() {
       const query = req.query;
       const page = query.page;
 
+      const category = req.query.category;
+
       const pageNumber = parseInt(page);
       const perPage = 6;
       const skip = pageNumber * perPage;
 
-      const foods = foodsCollection.find().skip(skip).limit(perPage);
-      const result = await foods.toArray();
-      const foodCounts = await foodsCollection.countDocuments();
+      let foods;
+      let result;
+      let foodCounts;
+
+      if (category === "" || category === "All") {
+        foods = foodsCollection.find().skip(skip).limit(perPage);
+        result = await foods.toArray();
+        foodCounts = await foodsCollection.countDocuments();
+      } else {
+        foods = foodsCollection
+          .find({ category: category })
+          .skip(skip)
+          .limit(perPage);
+        result = await foods.toArray();
+        foodCounts = result.length;
+      }
 
       res.json({ result, foodCounts });
     });
