@@ -61,30 +61,39 @@ async function run() {
       const query = req.query;
       const page = query.page;
 
-      const category = req.query.category;
-
       const pageNumber = parseInt(page);
       const perPage = 6;
       const skip = pageNumber * perPage;
 
-      let foods;
-      let result;
-      let foodCounts;
-
-      if (category === "" || category === "All") {
-        foods = foodsCollection.find().skip(skip).limit(perPage);
-        result = await foods.toArray();
-        foodCounts = await foodsCollection.countDocuments();
-      } else {
-        foods = foodsCollection
-          .find({ category: category })
-          .skip(skip)
-          .limit(perPage);
-        result = await foods.toArray();
-        foodCounts = result.length;
-      }
+      let foods = foodsCollection.find().skip(skip).limit(perPage);
+      let result = await foods.toArray();
+      let foodCounts = await foodsCollection.countDocuments();
 
       res.json({ result, foodCounts });
+    });
+
+    // Get foods for browse by category
+    app.get("/foods/category", async (req, res) => {
+      const category = req.query.category;
+      let foods = foodsCollection.find({ category: category });
+      let result = await foods.toArray();
+      res.send(result);
+    });
+
+    // Get foods for search result
+    app.get("/foods/search", async (req, res) => {
+      const search = req.query.search;
+      let query = {
+        name: { $regex: search, $options: "i" },
+      };
+      let result = await foodsCollection.find(query).toArray();
+
+      let noResultFound;
+      if (result.length === 0) {
+        noResultFound = "no result found";
+      }
+
+      res.json({ result, noResultFound });
     });
 
     // Get all restaurant specific food query by name
