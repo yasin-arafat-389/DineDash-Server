@@ -1,11 +1,13 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5001;
 
 // Middlewares
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 app.use(
   cors({
     origin: ["http://localhost:5173", "https://dine-dash-client.web.app"],
@@ -14,6 +16,7 @@ app.use(
 );
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { sendInvoice } = require("./Utility/SendInvoice/SendInvoice");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.gef2z8f.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -28,6 +31,7 @@ async function run() {
   const providersCollection = client.db("DineDash").collection("providers");
   const restaurantsCollection = client.db("DineDash").collection("restaurants");
   const foodsCollection = client.db("DineDash").collection("foods");
+  const ordersCollection = client.db("DineDash").collection("orders");
 
   try {
     // Get Provider names and images API
@@ -101,6 +105,16 @@ async function run() {
       const name = req.query.name;
       const foods = await foodsCollection.find({ restaurant: name }).toArray();
       res.status(200).json(foods);
+    });
+
+    // Insert order data to the orders collection and send email invoice
+    app.post("/orders", async (req, res) => {
+      let order = req.body;
+      await ordersCollection.insertOne(order);
+
+      sendInvoice(order, order.email, order.name);
+
+      res.send({ success: true });
     });
 
     console.log(
