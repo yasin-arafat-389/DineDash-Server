@@ -1,12 +1,15 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const bodyParser = require("body-parser");
+const SSLCommerzPayment = require("sslcommerz-lts");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5001;
 
 // Middlewares
 app.use(express.json());
+app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 app.use(
   cors({
@@ -26,6 +29,10 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const store_id = process.env.STORE_ID;
+const store_passwd = process.env.STORE_PASS;
+const is_live = false;
 
 async function run() {
   const providersCollection = client.db("DineDash").collection("providers");
@@ -107,7 +114,7 @@ async function run() {
       res.status(200).json(foods);
     });
 
-    // Insert order data to the orders collection and send email invoice
+    // Insert order data to the orders collection and send email invoice (Cash On Delivery)
     app.post("/orders", async (req, res) => {
       let order = req.body;
       await ordersCollection.insertOne(order);
@@ -115,6 +122,58 @@ async function run() {
       sendInvoice(order, order.email, order.name);
 
       res.send({ success: true });
+    });
+
+    // Insert order data to the orders collection and send email invoice (Cash On Delivery)
+    app.post("/orders/sslcommerz", async (req, res) => {
+      let order = req.body;
+
+      let tarnsactionID = new ObjectId().toString();
+      const data = {
+        total_amount: `${order.orderTotal}`,
+        currency: "BDT",
+        tran_id: tarnsactionID,
+        success_url: `http://localhost:5000/payment/success/${tarnsactionID}`,
+        fail_url: "http://localhost:5000/payment/failed",
+        cancel_url: "http://localhost:3030/cancel",
+        ipn_url: "http://localhost:3030/ipn",
+        shipping_method: "Courier",
+        product_name: "Computer.",
+        product_category: "Electronic",
+        product_profile: "general",
+        cus_name: `${order.name}`,
+        cus_email: `${order.email}`,
+        cus_add1: "Dhaka",
+        cus_add2: "Dhaka",
+        cus_city: "Dhaka",
+        cus_state: "Dhaka",
+        cus_postcode: "1000",
+        cus_country: "Bangladesh",
+        cus_phone: "01711111111",
+        cus_fax: "01711111111",
+        ship_name: "Customer Name",
+        ship_add1: "Dhaka",
+        ship_add2: "Dhaka",
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: 1000,
+        ship_country: "Bangladesh",
+      };
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      sslcz.init(data).then((apiResponse) => {
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.send({ url: GatewayPageURL });
+      });
+
+      app.post("/payment/success/:tranID", async (req, res) => {
+        await ordersCollection.insertOne(order);
+        sendInvoice(order, order.email, order.name);
+        res.redirect("http://localhost:5173/my-orders");
+      });
+
+      app.post("/payment/failed", async (req, res) => {
+        res.redirect("http://localhost:5173/cart");
+      });
     });
 
     console.log(
