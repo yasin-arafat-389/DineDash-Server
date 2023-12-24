@@ -35,6 +35,7 @@ const store_passwd = process.env.STORE_PASS;
 const is_live = false;
 
 async function run() {
+  const addressCollection = client.db("DineDash").collection("addresses");
   const providersCollection = client.db("DineDash").collection("providers");
   const restaurantsCollection = client.db("DineDash").collection("restaurants");
   const foodsCollection = client.db("DineDash").collection("foods");
@@ -119,7 +120,7 @@ async function run() {
       let order = req.body;
       await ordersCollection.insertOne(order);
 
-      sendInvoice(order, order.email, order.name);
+      // sendInvoice(order, order.email, order.name);
 
       res.send({ success: true });
     });
@@ -127,7 +128,6 @@ async function run() {
     // Insert order data to the orders collection and send email invoice (Cash On Delivery)
     app.post("/orders/sslcommerz", async (req, res) => {
       let order = req.body;
-
       let tarnsactionID = new ObjectId().toString();
       const data = {
         total_amount: `${order.orderTotal}`,
@@ -174,6 +174,45 @@ async function run() {
       app.post("/payment/failed", async (req, res) => {
         res.redirect("http://localhost:5173/cart");
       });
+    });
+
+    // Update user's delivery address to the database
+    app.post("/update-address", async (req, res) => {
+      let { address, email } = req.body;
+      const result = await addressCollection.updateOne(
+        { email: email },
+        { $set: { address: address } },
+        { upsert: true }
+      );
+
+      if (result.upsertedCount > 0 || result.modifiedCount > 0) {
+        res.send({ success: true });
+      } else {
+        res.send({ success: false, message: "No changes made" });
+      }
+    });
+
+    // Update user's delivery address to the database
+    app.post("/update-phone", async (req, res) => {
+      let { phone, email } = req.body;
+      const result = await addressCollection.updateOne(
+        { email: email },
+        { $set: { phone: phone } },
+        { upsert: true }
+      );
+
+      if (result.upsertedCount > 0 || result.modifiedCount > 0) {
+        res.send({ success: true });
+      } else {
+        res.send({ success: false, message: "No changes made" });
+      }
+    });
+
+    // Get user's address
+    app.get("/my-address", async (req, res) => {
+      const email = req.query.email;
+      const address = await addressCollection.findOne({ email: email });
+      res.send(address);
     });
 
     console.log(
