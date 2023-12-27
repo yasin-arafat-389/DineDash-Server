@@ -40,6 +40,7 @@ async function run() {
   const restaurantsCollection = client.db("DineDash").collection("restaurants");
   const foodsCollection = client.db("DineDash").collection("foods");
   const ordersCollection = client.db("DineDash").collection("orders");
+  const sslcommerzCollection = client.db("DineDash").collection("sslcommerz");
 
   try {
     // Get Provider names and images API
@@ -128,13 +129,20 @@ async function run() {
     // Insert order data to the orders collection and send email invoice (Cash On Delivery)
     app.post("/orders/sslcommerz", async (req, res) => {
       let order = req.body;
-      let tarnsactionID = new ObjectId().toString();
+
+      await sslcommerzCollection.insertOne(order);
+
+      setTimeout(async () => {
+        await sslcommerzCollection.deleteOne({ randString: order.randString });
+      }, 5 * 60 * 1000);
+
+      let transactionId = new ObjectId().toString();
       const data = {
         total_amount: `${order.orderTotal}`,
         currency: "BDT",
-        tran_id: tarnsactionID,
-        success_url: `http://localhost:5000/payment/success/${tarnsactionID}`,
-        fail_url: "http://localhost:5000/payment/failed",
+        tran_id: transactionId,
+        success_url: `http://localhost:5000/payment/success/${transactionId}/${order.randString}`,
+        fail_url: `http://localhost:5000/payment/failed`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -165,14 +173,22 @@ async function run() {
         res.send({ url: GatewayPageURL });
       });
 
-      app.post("/payment/success/:tranID", async (req, res) => {
-        await ordersCollection.insertOne(order);
-        sendInvoice(order, order.email, order.name);
-        res.redirect("http://localhost:5173/my-orders");
+      app.post("/payment/success/:tranID/:oid", async (req, res) => {
+        let oid = req.params.oid;
+
+        let orderToCommit = await sslcommerzCollection.findOne({
+          randString: oid,
+        });
+
+        await ordersCollection.insertOne(orderToCommit);
+
+        // sendInvoice(orderToCommit, orderToCommit.email, orderToCommit.name);
+
+        res.redirect("http://localhost:5173/order-success");
       });
 
       app.post("/payment/failed", async (req, res) => {
-        res.redirect("http://localhost:5173/cart");
+        res.redirect("http://localhost:5173/payment-cancelled");
       });
     });
 
@@ -213,6 +229,24 @@ async function run() {
       const email = req.query.email;
       const address = await addressCollection.findOne({ email: email });
       res.send(address);
+    });
+
+    // Get all orders of a user
+    app.get("/my-orders", async (req, res) => {
+      const email = req.query.email;
+
+      let result = await ordersCollection
+        .find({ email: email })
+        .project({
+          _id: 1,
+          cartFood: 1,
+          burger: 1,
+          date: 1,
+          status: 1,
+        })
+        .toArray();
+
+      res.send(result);
     });
 
     console.log(
