@@ -184,7 +184,14 @@ async function run() {
 
         // sendInvoice(orderToCommit, orderToCommit.email, orderToCommit.name);
 
-        res.redirect("http://localhost:5173/order-success");
+        let redirectTo;
+        if (orderToCommit.cartFood?.length > 0) {
+          redirectTo = "myOrders";
+        } else {
+          redirectTo = "customMadeBurgers";
+        }
+
+        res.redirect(`http://localhost:5173/order-success/${redirectTo}`);
       });
 
       app.post("/payment/failed", async (req, res) => {
