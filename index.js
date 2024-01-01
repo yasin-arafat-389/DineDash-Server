@@ -41,6 +41,9 @@ async function run() {
   const foodsCollection = client.db("DineDash").collection("foods");
   const ordersCollection = client.db("DineDash").collection("orders");
   const sslcommerzCollection = client.db("DineDash").collection("sslcommerz");
+  const partnerRequestsCollection = client
+    .db("DineDash")
+    .collection("partnerRequests");
 
   try {
     // Get Provider names and images API
@@ -131,10 +134,6 @@ async function run() {
       let order = req.body;
 
       await sslcommerzCollection.insertOne(order);
-
-      setTimeout(async () => {
-        await sslcommerzCollection.deleteOne({ randString: order.randString });
-      }, 5 * 60 * 1000);
 
       let transactionId = new ObjectId().toString();
       const data = {
@@ -250,8 +249,27 @@ async function run() {
           burger: 1,
           date: 1,
           status: 1,
+          order: 1,
         })
         .toArray();
+
+      result.sort((a, b) => b.order - a.order);
+
+      res.send(result);
+    });
+
+    // Store partner request to the database
+    app.post("/partner-request", async (req, res) => {
+      let data = req.body;
+      await partnerRequestsCollection.insertOne(data);
+      res.send({ success: true });
+    });
+
+    // Get partner request status
+    app.get("/partner-request", async (req, res) => {
+      let email = req.query.email;
+
+      let result = await partnerRequestsCollection.findOne({ email: email });
 
       res.send(result);
     });
