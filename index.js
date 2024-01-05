@@ -13,7 +13,11 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://dine-dash-client.web.app"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:3001",
+      "https://dine-dash-client.web.app",
+    ],
     credentials: true,
   })
 );
@@ -44,6 +48,7 @@ async function run() {
   const partnerRequestsCollection = client
     .db("DineDash")
     .collection("partnerRequests");
+  const rolesCollection = client.db("DineDash").collection("userRoles");
 
   try {
     // Get Provider names and images API
@@ -268,10 +273,49 @@ async function run() {
     // Get partner request status
     app.get("/partner-request", async (req, res) => {
       let email = req.query.email;
-
       let result = await partnerRequestsCollection.findOne({ email: email });
-
       res.send(result);
+    });
+
+    // Get all partner request for admin
+    app.get("/partner-requests", async (req, res) => {
+      let result = await partnerRequestsCollection
+        .find({ status: "pending" })
+        .toArray();
+      res.send(result);
+    });
+
+    // Get user role
+    app.get("/get-role", async (req, res) => {
+      let email = req.query.email;
+      let result = await rolesCollection.findOne({ email: email });
+      res.send(result);
+    });
+
+    // Update partner request status (Accept)
+    app.post("/accept/partner-request", async (req, res) => {
+      let data = req.body;
+
+      await partnerRequestsCollection.updateOne(
+        { email: data.email },
+        { $set: { status: "accepted" } }
+      );
+
+      let insertToRoleCollection = {
+        email: data.email,
+        role: "restaurant-handler",
+      };
+
+      let insertToRestaurantsCollection = {
+        name: data.name,
+        thumbnail: data.thumbnail,
+        pathname: data.name.toLowerCase().replace(/\s+/g, "-"),
+      };
+
+      await rolesCollection.insertOne(insertToRoleCollection);
+      await restaurantsCollection.insertOne(insertToRestaurantsCollection);
+
+      res.send({ success: true });
     });
 
     console.log(
