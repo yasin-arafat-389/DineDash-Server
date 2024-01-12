@@ -129,7 +129,7 @@ async function run() {
       let order = req.body;
       await ordersCollection.insertOne(order);
 
-      sendInvoice(order, order.email, order.name);
+      // sendInvoice(order, order.email, order.name);
 
       res.send({ success: true });
     });
@@ -145,8 +145,8 @@ async function run() {
         total_amount: `${order.orderTotal}`,
         currency: "BDT",
         tran_id: transactionId,
-        success_url: `https://dine-dash-server.vercel.app/payment/success/${transactionId}/${order.randString}`,
-        fail_url: `https://dine-dash-server.vercel.app/payment/failed`,
+        success_url: `http://localhost:5000/payment/success/${transactionId}/${order.randString}`,
+        fail_url: `http://localhost:5000/payment/failed`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -186,7 +186,7 @@ async function run() {
 
         await ordersCollection.insertOne(orderToCommit);
 
-        sendInvoice(orderToCommit, orderToCommit.email, orderToCommit.name);
+        // sendInvoice(orderToCommit, orderToCommit.email, orderToCommit.name);
 
         let redirectTo;
         if (orderToCommit.cartFood?.length > 0) {
@@ -195,13 +195,11 @@ async function run() {
           redirectTo = "customMadeBurgers";
         }
 
-        res.redirect(
-          `https://dine-dash-client.web.app/order-success/${redirectTo}`
-        );
+        res.redirect(`http://localhost:5173/order-success/${redirectTo}`);
       });
 
       app.post("/payment/failed", async (req, res) => {
-        res.redirect("https://dine-dash-client.web.app/payment-cancelled");
+        res.redirect("http://localhost:5173/payment-cancelled");
       });
     });
 
@@ -294,7 +292,7 @@ async function run() {
       res.send(result);
     });
 
-    // Update partner request status (Accept)
+    // Accept partner request
     app.post("/accept/partner-request", async (req, res) => {
       let data = req.body;
 
@@ -316,6 +314,18 @@ async function run() {
 
       await rolesCollection.insertOne(insertToRoleCollection);
       await restaurantsCollection.insertOne(insertToRestaurantsCollection);
+
+      res.send({ success: true });
+    });
+
+    // Reject partner request
+    app.post("/reject/partner-request", async (req, res) => {
+      let email = req.query.email;
+
+      await partnerRequestsCollection.updateOne(
+        { email: email },
+        { $set: { status: "rejected" } }
+      );
 
       res.send({ success: true });
     });
