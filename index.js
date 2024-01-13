@@ -17,6 +17,7 @@ app.use(
       "http://localhost:5173",
       "http://localhost:3001",
       "https://dine-dash-client.web.app",
+      "https://dinedash-dashboard.web.app",
     ],
     credentials: true,
   })
@@ -24,6 +25,9 @@ app.use(
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const { sendInvoice } = require("./Utility/SendInvoice/SendInvoice");
+const {
+  sendInstruction,
+} = require("./Utility/SendInstruction/SendInstruction");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.gef2z8f.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -129,7 +133,7 @@ async function run() {
       let order = req.body;
       await ordersCollection.insertOne(order);
 
-      // sendInvoice(order, order.email, order.name);
+      sendInvoice(order, order.email, order.name);
 
       res.send({ success: true });
     });
@@ -145,8 +149,8 @@ async function run() {
         total_amount: `${order.orderTotal}`,
         currency: "BDT",
         tran_id: transactionId,
-        success_url: `http://localhost:5000/payment/success/${transactionId}/${order.randString}`,
-        fail_url: `http://localhost:5000/payment/failed`,
+        success_url: `https://dine-dash-server.vercel.app/payment/success/${transactionId}/${order.randString}`,
+        fail_url: `https://dine-dash-server.vercel.app/payment/failed`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -186,7 +190,7 @@ async function run() {
 
         await ordersCollection.insertOne(orderToCommit);
 
-        // sendInvoice(orderToCommit, orderToCommit.email, orderToCommit.name);
+        sendInvoice(orderToCommit, orderToCommit.email, orderToCommit.name);
 
         let redirectTo;
         if (orderToCommit.cartFood?.length > 0) {
@@ -195,11 +199,13 @@ async function run() {
           redirectTo = "customMadeBurgers";
         }
 
-        res.redirect(`http://localhost:5173/order-success/${redirectTo}`);
+        res.redirect(
+          `https://dine-dash-client.web.app/order-success/${redirectTo}`
+        );
       });
 
       app.post("/payment/failed", async (req, res) => {
-        res.redirect("http://localhost:5173/payment-cancelled");
+        res.redirect("https://dine-dash-client.web.app/payment-cancelled");
       });
     });
 
@@ -306,14 +312,9 @@ async function run() {
         role: "restaurant-handler",
       };
 
-      let insertToRestaurantsCollection = {
-        name: data.name,
-        thumbnail: data.thumbnail,
-        pathname: data.name.toLowerCase().replace(/\s+/g, "-"),
-      };
-
       await rolesCollection.insertOne(insertToRoleCollection);
-      await restaurantsCollection.insertOne(insertToRestaurantsCollection);
+
+      sendInstruction(data.email, data.name);
 
       res.send({ success: true });
     });
@@ -326,6 +327,21 @@ async function run() {
         { email: email },
         { $set: { status: "rejected" } }
       );
+
+      res.send({ success: true });
+    });
+
+    // Register a restaurant
+    app.post("/register-restaurant", async (req, res) => {
+      let data = req.body;
+
+      let insertToRestaurantsCollection = {
+        name: data.restaurantName,
+        thumbnail: data.thumbnail,
+        pathname: data.restaurantName.toLowerCase().replace(/\s+/g, "-"),
+      };
+
+      await restaurantsCollection.insertOne(insertToRestaurantsCollection);
 
       res.send({ success: true });
     });
