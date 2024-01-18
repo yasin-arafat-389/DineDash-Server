@@ -133,12 +133,12 @@ async function run() {
       let order = req.body;
       await ordersCollection.insertOne(order);
 
-      sendInvoice(order, order.email, order.name);
+      await sendInvoice(order, order.email, order.name);
 
       res.send({ success: true });
     });
 
-    // Insert order data to the orders collection and send email invoice (Cash On Delivery)
+    // Insert order data to the orders collection and send email invoice (SSLCOMMERZ)
     app.post("/orders/sslcommerz", async (req, res) => {
       let order = req.body;
 
@@ -190,7 +190,11 @@ async function run() {
 
         await ordersCollection.insertOne(orderToCommit);
 
-        sendInvoice(orderToCommit, orderToCommit.email, orderToCommit.name);
+        await sendInvoice(
+          orderToCommit,
+          orderToCommit.email,
+          orderToCommit.name
+        );
 
         let redirectTo;
         if (orderToCommit.cartFood?.length > 0) {
@@ -314,7 +318,7 @@ async function run() {
 
       await rolesCollection.insertOne(insertToRoleCollection);
 
-      sendInstruction(data.email, data.name);
+      await sendInstruction(data.email, data.name);
 
       res.send({ success: true });
     });

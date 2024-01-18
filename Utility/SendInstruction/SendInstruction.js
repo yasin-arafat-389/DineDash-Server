@@ -240,7 +240,7 @@ const sendInstruction = (to, name) => {
               Congratulations on becoming a partner with
               <span class="font-semibold">DineDash</span>.
               <br/>
-              We are looking forward to seeing you business grow. Please click the link below to register your restaurant and get access to your dashboard.
+              We are looking forward to seeing you business grow. Please click the link below to register your restaurant and get access to your dashboard. You must use <span class="font-semibold">${to}</span> as the email address while registering your restaurant.
             </p>
 
             <a target='_blank' href='https://dinedash-dashboard.web.app/'>
