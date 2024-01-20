@@ -52,6 +52,9 @@ async function run() {
   const partnerRequestsCollection = client
     .db("DineDash")
     .collection("partnerRequests");
+  const riderRequestsCollection = client
+    .db("DineDash")
+    .collection("riderRequests");
   const rolesCollection = client.db("DineDash").collection("userRoles");
 
   try {
@@ -133,7 +136,7 @@ async function run() {
       let order = req.body;
       await ordersCollection.insertOne(order);
 
-      await sendInvoice(order, order.email, order.name);
+      // sendInvoice(order, order.email, order.name);
 
       res.send({ success: true });
     });
@@ -149,8 +152,8 @@ async function run() {
         total_amount: `${order.orderTotal}`,
         currency: "BDT",
         tran_id: transactionId,
-        success_url: `https://dine-dash-server.vercel.app/payment/success/${transactionId}/${order.randString}`,
-        fail_url: `https://dine-dash-server.vercel.app/payment/failed`,
+        success_url: `http://localhost:5000/payment/success/${transactionId}/${order.randString}`,
+        fail_url: `http://localhost:5000/payment/failed`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -190,11 +193,11 @@ async function run() {
 
         await ordersCollection.insertOne(orderToCommit);
 
-        await sendInvoice(
-          orderToCommit,
-          orderToCommit.email,
-          orderToCommit.name
-        );
+        // await sendInvoice(
+        //   orderToCommit,
+        //   orderToCommit.email,
+        //   orderToCommit.name
+        // );
 
         let redirectTo;
         if (orderToCommit.cartFood?.length > 0) {
@@ -203,13 +206,11 @@ async function run() {
           redirectTo = "customMadeBurgers";
         }
 
-        res.redirect(
-          `https://dine-dash-client.web.app/order-success/${redirectTo}`
-        );
+        res.redirect(`http://localhost:5173/order-success/${redirectTo}`);
       });
 
       app.post("/payment/failed", async (req, res) => {
-        res.redirect("https://dine-dash-client.web.app/payment-cancelled");
+        res.redirect("http://localhost:5173/payment-cancelled");
       });
     });
 
@@ -306,6 +307,8 @@ async function run() {
     app.post("/accept/partner-request", async (req, res) => {
       let data = req.body;
 
+      // await sendInstruction(data.email, data.name);
+
       await partnerRequestsCollection.updateOne(
         { email: data.email },
         { $set: { status: "accepted" } }
@@ -317,8 +320,6 @@ async function run() {
       };
 
       await rolesCollection.insertOne(insertToRoleCollection);
-
-      await sendInstruction(data.email, data.name);
 
       res.send({ success: true });
     });
@@ -348,6 +349,20 @@ async function run() {
       await restaurantsCollection.insertOne(insertToRestaurantsCollection);
 
       res.send({ success: true });
+    });
+
+    // Store rider requests to the database
+    app.post("/rider-request", async (req, res) => {
+      let data = req.body;
+      await riderRequestsCollection.insertOne(data);
+      res.send({ success: true });
+    });
+
+    // Get rider request status
+    app.get("/rider-request", async (req, res) => {
+      let email = req.query.email;
+      let result = await riderRequestsCollection.findOne({ email: email });
+      res.send(result);
     });
 
     console.log(
