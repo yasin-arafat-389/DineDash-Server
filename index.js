@@ -28,6 +28,9 @@ const { sendInvoice } = require("./Utility/SendInvoice/SendInvoice");
 const {
   sendInstruction,
 } = require("./Utility/SendInstruction/SendInstruction");
+const {
+  PartnerRequestRejected,
+} = require("./Utility/PartnerRequestRejected/PartnerRequestRejected");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.gef2z8f.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -137,15 +140,15 @@ async function run() {
 
       await ordersCollection.insertOne(order);
 
-      let detailsForInvoice = await ordersCollection.findOne({
-        randString: order.randString,
-      });
+      // let detailsForInvoice = await ordersCollection.findOne({
+      //   randString: order.randString,
+      // });
 
-      await sendInvoice(
-        detailsForInvoice,
-        detailsForInvoice.email,
-        detailsForInvoice.name
-      );
+      // await sendInvoice(
+      //   detailsForInvoice,
+      //   detailsForInvoice.email,
+      //   detailsForInvoice.name
+      // );
 
       res.send({ success: true });
     });
@@ -161,8 +164,8 @@ async function run() {
         total_amount: `${order.orderTotal}`,
         currency: "BDT",
         tran_id: transactionId,
-        success_url: `https://dine-dash-server.vercel.app/payment/success/${transactionId}/${order.randString}`,
-        fail_url: `https://dine-dash-server.vercel.app/payment/failed`,
+        success_url: `http://localhost:5000/payment/success/${transactionId}/${order.randString}`,
+        fail_url: `http://localhost:5000/payment/failed`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -202,11 +205,11 @@ async function run() {
 
         await ordersCollection.insertOne(orderToCommit);
 
-        await sendInvoice(
-          orderToCommit,
-          orderToCommit.email,
-          orderToCommit.name
-        );
+        // await sendInvoice(
+        //   orderToCommit,
+        //   orderToCommit.email,
+        //   orderToCommit.name
+        // );
 
         let redirectTo;
         if (orderToCommit.cartFood?.length > 0) {
@@ -215,13 +218,11 @@ async function run() {
           redirectTo = "customMadeBurgers";
         }
 
-        res.redirect(
-          `https://dine-dash-client.web.app/order-success/${redirectTo}`
-        );
+        res.redirect(`http://localhost:5173/order-success/${redirectTo}`);
       });
 
       app.post("/payment/failed", async (req, res) => {
-        res.redirect("https://dine-dash-client.web.app/payment-cancelled");
+        res.redirect("http://localhost:5173/payment-cancelled");
       });
     });
 
@@ -318,7 +319,7 @@ async function run() {
     app.post("/accept/partner-request", async (req, res) => {
       let data = req.body;
 
-      await sendInstruction(data.email, data.name);
+      // await sendInstruction(data.email, data.name);
 
       await partnerRequestsCollection.updateOne(
         { email: data.email },
@@ -337,7 +338,10 @@ async function run() {
 
     // Reject partner request
     app.post("/reject/partner-request", async (req, res) => {
-      let email = req.query.email;
+      let email = req.body.email;
+      let name = req.body.name;
+
+      await PartnerRequestRejected(email, name);
 
       await partnerRequestsCollection.updateOne(
         { email: email },
@@ -373,6 +377,14 @@ async function run() {
     app.get("/rider-request", async (req, res) => {
       let email = req.query.email;
       let result = await riderRequestsCollection.findOne({ email: email });
+      res.send(result);
+    });
+
+    // Get all rider request for admin
+    app.get("/rider-requests", async (req, res) => {
+      let result = await riderRequestsCollection
+        .find({ status: "pending" })
+        .toArray();
       res.send(result);
     });
 
