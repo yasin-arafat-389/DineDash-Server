@@ -31,6 +31,9 @@ const {
 const {
   PartnerRequestRejected,
 } = require("./Utility/PartnerRequestRejected/PartnerRequestRejected");
+const {
+  SendInstructionToRider,
+} = require("./Utility/SendIntructionToRider/SendInstructionToRider");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.gef2z8f.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -385,6 +388,34 @@ async function run() {
       let result = await riderRequestsCollection
         .find({ status: "pending" })
         .toArray();
+      res.send(result);
+    });
+
+    // Accept rider request
+    app.post("/accept/rider-request", async (req, res) => {
+      let data = req.body;
+
+      // await SendInstructionToRider(data.email, data.name);
+
+      await riderRequestsCollection.updateOne(
+        { email: data.email },
+        { $set: { status: "accepted" } }
+      );
+
+      let insertToRoleCollection = {
+        email: data.email,
+        role: "rider",
+      };
+
+      await rolesCollection.insertOne(insertToRoleCollection);
+
+      res.send({ success: true });
+    });
+
+    // Get rider request status
+    app.get("/rider-request-status", async (req, res) => {
+      let email = req.query.email;
+      let result = await riderRequestsCollection.findOne({ email: email });
       res.send(result);
     });
 
