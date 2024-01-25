@@ -34,6 +34,10 @@ const {
 const {
   SendInstructionToRider,
 } = require("./Utility/SendIntructionToRider/SendInstructionToRider");
+const {
+  RiderRequestRejected,
+} = require("./Utility/RiderRequestRejected/RiderRequestRejected");
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.gef2z8f.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -62,6 +66,7 @@ async function run() {
     .db("DineDash")
     .collection("riderRequests");
   const rolesCollection = client.db("DineDash").collection("userRoles");
+  const ridersCollection = client.db("DineDash").collection("riders");
 
   try {
     // Get Provider names and images API
@@ -412,11 +417,41 @@ async function run() {
       res.send({ success: true });
     });
 
+    // Reject partner request
+    app.post("/reject/rider-request", async (req, res) => {
+      let email = req.body.email;
+      let name = req.body.name;
+
+      // await RiderRequestRejected(email, name);
+
+      await riderRequestsCollection.updateOne(
+        { email: email },
+        { $set: { status: "rejected" } }
+      );
+
+      res.send({ success: true });
+    });
+
     // Get rider request status
     app.get("/rider-request-status", async (req, res) => {
       let email = req.query.email;
       let result = await riderRequestsCollection.findOne({ email: email });
       res.send(result);
+    });
+
+    // Register Rider
+    app.post("/register-rider", async (req, res) => {
+      let data = req.body;
+
+      let insertToRidersCollection = {
+        name: data.name,
+        phone: data.phone,
+        region: data.region,
+      };
+
+      await ridersCollection.insertOne(insertToRidersCollection);
+
+      res.send({ success: true });
     });
 
     console.log(
