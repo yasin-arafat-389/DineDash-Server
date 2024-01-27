@@ -69,16 +69,49 @@ async function run() {
   const ridersCollection = client.db("DineDash").collection("riders");
 
   try {
-    // Get Provider names and images API
+    // Get Provider names and images
     app.get("/providers", async (req, res) => {
       const result = await providersCollection.find().toArray();
       res.send(result);
     });
 
-    // Get Restaurents for homepage slider API
+    // Get Restaurents for homepage slider
     app.get("/restaurants", async (req, res) => {
       const result = await restaurantsCollection.find().toArray();
       res.send(result);
+    });
+
+    // Get All riders for admin overview
+    app.get("/all-riders", async (req, res) => {
+      const result = await ridersCollection.find().toArray();
+      res.send(result);
+    });
+
+    // Get total orders placed for admin overview
+    app.get("/all-orders", async (req, res) => {
+      const result = await ordersCollection.find().toArray();
+      res.send(result);
+    });
+
+    // Get all restaurants and their details fro admin overview
+    app.get("/restaurants-and-details", async (req, res) => {
+      const allRestaurants = await restaurantsCollection.find().toArray();
+
+      const restaurantsWithData = [];
+
+      for (const restaurant of allRestaurants) {
+        const foods = await foodsCollection
+          .find({ restaurant: restaurant.name })
+          .toArray();
+
+        const restaurantWithData = {
+          restaurant: restaurant,
+          foods: foods,
+        };
+        restaurantsWithData.push(restaurantWithData);
+      }
+
+      res.send(restaurantsWithData);
     });
 
     // Get single restaurant data
@@ -369,6 +402,11 @@ async function run() {
         pathname: data.restaurantName.toLowerCase().replace(/\s+/g, "-"),
       };
 
+      await partnerRequestsCollection.updateOne(
+        { email: data.email },
+        { $set: { resolved: true } }
+      );
+
       await restaurantsCollection.insertOne(insertToRestaurantsCollection);
 
       res.send({ success: true });
@@ -448,6 +486,11 @@ async function run() {
         phone: data.phone,
         region: data.region,
       };
+
+      await riderRequestsCollection.updateOne(
+        { email: data.email },
+        { $set: { resolved: true } }
+      );
 
       await ridersCollection.insertOne(insertToRidersCollection);
 
