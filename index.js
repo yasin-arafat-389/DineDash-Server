@@ -466,7 +466,7 @@ async function run() {
       let email = req.body.email;
       let name = req.body.name;
 
-      // await RiderRequestRejected(email, name);
+      // RiderRequestRejected(email, name);
 
       await riderRequestsCollection.updateOne(
         { email: email },
@@ -528,6 +528,42 @@ async function run() {
         .toArray();
 
       res.send(filteredOrders);
+    });
+
+    // Accept regular order
+    app.post("/accept/order/regular", async (req, res) => {
+      let orderId = req.body.orderId;
+
+      const acceptOrder = await ordersCollection.updateOne(
+        {
+          "cartFood.orderId": orderId,
+        },
+        {
+          $set: {
+            "cartFood.$.status": "cooking",
+          },
+        }
+      );
+
+      res.send({ success: true });
+    });
+
+    // Reject regular order
+    app.post("/reject/order/regular", async (req, res) => {
+      let orderId = req.body.orderId;
+
+      const acceptOrder = await ordersCollection.updateOne(
+        {
+          "cartFood.orderId": orderId,
+        },
+        {
+          $set: {
+            "cartFood.$.status": "cancelled",
+          },
+        }
+      );
+
+      res.send({ success: true });
     });
 
     console.log(
