@@ -114,6 +114,12 @@ async function run() {
       res.send(restaurantsWithData);
     });
 
+    // Get all registered riders for admin overview
+    app.get("/all-registered-riders", async (req, res) => {
+      const result = await ridersCollection.find().toArray();
+      res.send(result);
+    });
+
     // Get single restaurant data
     app.get("/restaurantData", async (req, res) => {
       let name = req.query.name;
@@ -382,7 +388,7 @@ async function run() {
       let email = req.body.email;
       let name = req.body.name;
 
-      await PartnerRequestRejected(email, name);
+      // await PartnerRequestRejected(email, name);
 
       await partnerRequestsCollection.updateOne(
         { email: email },
@@ -495,6 +501,33 @@ async function run() {
       await ridersCollection.insertOne(insertToRidersCollection);
 
       res.send({ success: true });
+    });
+
+    // Get regular orders data for the restaurant handler
+    app.get("/orders/partner", async (req, res) => {
+      let restaurantName = req.query.name;
+
+      const filteredOrders = await ordersCollection
+        .find({
+          cartFood: {
+            $elemMatch: { restaurant: restaurantName },
+          },
+        })
+        .project({
+          _id: 1,
+          cartFood: {
+            $elemMatch: { restaurant: restaurantName },
+          },
+          name: 1,
+          address: 1,
+          phone: 1,
+          region: 1,
+          orderTotal: 1,
+          paymentMethod: 1,
+        })
+        .toArray();
+
+      res.send(filteredOrders);
     });
 
     console.log(
