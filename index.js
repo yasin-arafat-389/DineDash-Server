@@ -548,6 +548,24 @@ async function run() {
       res.send({ success: true });
     });
 
+    // Deliver order to rider
+    app.post("/deliver/order/regular", async (req, res) => {
+      let orderId = req.body.orderId;
+
+      const deliverOrder = await ordersCollection.updateOne(
+        {
+          "cartFood.orderId": orderId,
+        },
+        {
+          $set: {
+            "cartFood.$.status": "out for delivery",
+          },
+        }
+      );
+
+      res.send({ success: true });
+    });
+
     // Reject regular order
     app.post("/reject/order/regular", async (req, res) => {
       let orderId = req.body.orderId;
@@ -564,6 +582,21 @@ async function run() {
       );
 
       res.send({ success: true });
+    });
+
+    // Get provider status (if a restaurant provides custom burger service or not)
+    app.get("/provider/status", async (req, res) => {
+      let name = req.query.name;
+      let query = { provider: name };
+      const result = await providersCollection.findOne(query);
+      res.send(result);
+    });
+
+    // Insert custom burger provider details to the database
+    app.post("/become-provider", async (req, res) => {
+      let data = req.body;
+      const result = await providersCollection.insertOne(data);
+      res.send(result);
     });
 
     console.log(
