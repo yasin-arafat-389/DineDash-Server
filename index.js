@@ -509,14 +509,16 @@ async function run() {
 
       const filteredOrders = await ordersCollection
         .find({
-          cartFood: {
-            $elemMatch: { restaurant: restaurantName },
-          },
+          "cartFood.restaurant": restaurantName,
         })
         .project({
           _id: 1,
           cartFood: {
-            $elemMatch: { restaurant: restaurantName },
+            $filter: {
+              input: "$cartFood",
+              as: "item",
+              cond: { $eq: ["$$item.restaurant", restaurantName] },
+            },
           },
           name: 1,
           address: 1,
@@ -570,7 +572,7 @@ async function run() {
     app.post("/reject/order/regular", async (req, res) => {
       let orderId = req.body.orderId;
 
-      const acceptOrder = await ordersCollection.updateOne(
+      const rejectOrder = await ordersCollection.updateOne(
         {
           "cartFood.orderId": orderId,
         },
@@ -597,6 +599,103 @@ async function run() {
       let data = req.body;
       const result = await providersCollection.insertOne(data);
       res.send(result);
+    });
+
+    // Update burger ingredients price
+    app.post("/update/ingredients/price", async (req, res) => {
+      const updatedPrice = req.body.updatedPrice;
+      const providerName = req.body.provider;
+      const ingredientToUpdate = req.body.ingredientToUpdate;
+
+      await providersCollection.findOneAndUpdate(
+        { provider: providerName, "ing.name": ingredientToUpdate },
+        { $set: { "ing.$.price": parseInt(updatedPrice) } }
+      );
+
+      res.send({ success: true });
+    });
+
+    // Get custom burger orders data for the restaurant handler
+    app.get("/custom/orders/partner", async (req, res) => {
+      let restaurantName = req.query.name;
+
+      const filteredOrders = await ordersCollection
+        .find({
+          "burger.provider": restaurantName,
+        })
+        .project({
+          _id: 1,
+          burger: {
+            $filter: {
+              input: "$burger",
+              as: "item",
+              cond: { $eq: ["$$item.provider", restaurantName] },
+            },
+          },
+          name: 1,
+          address: 1,
+          phone: 1,
+          region: 1,
+          orderTotal: 1,
+          paymentMethod: 1,
+        })
+        .toArray();
+
+      res.send(filteredOrders);
+    });
+
+    // Accept custom burger order
+    app.post("/accept/order/custom", async (req, res) => {
+      let orderId = req.body.orderId;
+
+      const acceptOrder = await ordersCollection.updateOne(
+        {
+          "burger.orderId": orderId,
+        },
+        {
+          $set: {
+            "burger.$.status": "cooking",
+          },
+        }
+      );
+
+      res.send({ success: true });
+    });
+
+    // Reject custom burger order
+    app.post("/reject/order/custom", async (req, res) => {
+      let orderId = req.body.orderId;
+
+      let rejectOrder = await ordersCollection.updateOne(
+        {
+          "burger.orderId": orderId,
+        },
+        {
+          $set: {
+            "burger.$.status": "cancelled",
+          },
+        }
+      );
+
+      res.send({ success: true });
+    });
+
+    // Deliver custom burger order to rider
+    app.post("/deliver/order/custom", async (req, res) => {
+      let orderId = req.body.orderId;
+
+      const deliverOrder = await ordersCollection.updateOne(
+        {
+          "burger.orderId": orderId,
+        },
+        {
+          $set: {
+            "burger.$.status": "out for delivery",
+          },
+        }
+      );
+
+      res.send({ success: true });
     });
 
     console.log(
