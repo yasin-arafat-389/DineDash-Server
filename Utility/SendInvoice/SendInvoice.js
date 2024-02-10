@@ -15,7 +15,7 @@ const sendInvoice = async (invoiceData, to, receiverName) => {
     },
   });
 
-  transporter.sendMail({
+  let mailData = {
     from: {
       name: "DineDash",
       address: process.env.SMTP_MAIL,
@@ -258,6 +258,17 @@ const sendInvoice = async (invoiceData, to, receiverName) => {
         </section>
       </body>
     </html>`,
+  };
+
+  await new Promise((resolve, reject) => {
+    transporter.sendMail(mailData, (err, info) => {
+      if (err) {
+        console.error(err);
+        reject(err);
+      } else {
+        resolve(info);
+      }
+    });
   });
 };
 

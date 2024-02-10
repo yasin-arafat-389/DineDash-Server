@@ -93,6 +93,95 @@ async function run() {
       res.send(result);
     });
 
+    // Get total orders placed for partners/restaurants overview
+    app.get("/all-orders/partner", async (req, res) => {
+      let restaurant = req.query.name;
+
+      const regularOrders = await ordersCollection
+        .find({
+          "cartFood.restaurant": restaurant,
+        })
+        .toArray();
+
+      const customOrders = await ordersCollection
+        .find({
+          "burger.provider": restaurant,
+        })
+        .toArray();
+
+      res.json({ regularOrders, customOrders });
+    });
+
+    // Get total orders delivered for partners/restaurants overview
+    app.get("/orders-delivered/total", async (req, res) => {
+      let restaurant = req.query.name;
+
+      const totalRegularOrdersDelivered = await ordersCollection
+        .find({
+          "cartFood.restaurant": restaurant,
+          "cartFood.status": "completed",
+        })
+        .toArray();
+
+      const totalCustomOrdersDelivered = await ordersCollection
+        .find({
+          "burger.provider": restaurant,
+          "burger.status": "completed",
+        })
+        .toArray();
+
+      res.json({ totalRegularOrdersDelivered, totalCustomOrdersDelivered });
+    });
+
+    // Get total earned for partners/restaurants overview
+    app.get("/total-earned", async (req, res) => {
+      let restaurant = req.query.name;
+
+      const totalRegularOrdersDelivered = await ordersCollection
+        .find({
+          "cartFood.restaurant": restaurant,
+          "cartFood.status": "completed",
+        })
+        .toArray();
+
+      const totalCustomOrdersDelivered = await ordersCollection
+        .find({
+          "burger.provider": restaurant,
+          "burger.status": "completed",
+        })
+        .toArray();
+
+      // Calculate total earned from regular orders
+      const totalRegularEarned = totalRegularOrdersDelivered.reduce(
+        (acc, order) => {
+          // Sum the totalPrice of each burger in the burger array
+          const regularTotal = order.cartFood.reduce((acc, regularItem) => {
+            return acc + parseInt(regularItem.totalPrice);
+          }, 0);
+          // Add the sum to the accumulator
+          return acc + regularTotal;
+        },
+        0
+      );
+
+      // Calculate total earned from custom orders
+      const totalCustomEarned = totalCustomOrdersDelivered.reduce(
+        (acc, order) => {
+          // Sum the totalPrice of each burger in the burger array
+          const burgerTotal = order.burger.reduce((burgerAcc, burgerItem) => {
+            return burgerAcc + parseInt(burgerItem.totalPrice);
+          }, 0);
+          // Add the sum to the accumulator
+          return acc + burgerTotal;
+        },
+        0
+      );
+
+      const grandTotal = totalRegularEarned + totalCustomEarned;
+
+      res.json({ grandTotal });
+    });
+
     // Get all restaurants and their details fro admin overview
     app.get("/restaurants-and-details", async (req, res) => {
       const allRestaurants = await restaurantsCollection.find().toArray();
@@ -187,15 +276,15 @@ async function run() {
 
       await ordersCollection.insertOne(order);
 
-      // let detailsForInvoice = await ordersCollection.findOne({
-      //   randString: order.randString,
-      // });
+      let detailsForInvoice = await ordersCollection.findOne({
+        randString: order.randString,
+      });
 
-      // await sendInvoice(
-      //   detailsForInvoice,
-      //   detailsForInvoice.email,
-      //   detailsForInvoice.name
-      // );
+      await sendInvoice(
+        detailsForInvoice,
+        detailsForInvoice.email,
+        detailsForInvoice.name
+      );
 
       res.send({ success: true });
     });
@@ -211,8 +300,8 @@ async function run() {
         total_amount: `${order.orderTotal}`,
         currency: "BDT",
         tran_id: transactionId,
-        success_url: `http://localhost:5000/payment/success/${transactionId}/${order.randString}`,
-        fail_url: `http://localhost:5000/payment/failed`,
+        success_url: `https://dine-dash-server.vercel.app/payment/success/${transactionId}/${order.randString}`,
+        fail_url: `https://dine-dash-server.vercel.app/payment/failed`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -252,11 +341,11 @@ async function run() {
 
         await ordersCollection.insertOne(orderToCommit);
 
-        // await sendInvoice(
-        //   orderToCommit,
-        //   orderToCommit.email,
-        //   orderToCommit.name
-        // );
+        await sendInvoice(
+          orderToCommit,
+          orderToCommit.email,
+          orderToCommit.name
+        );
 
         let redirectTo;
         if (orderToCommit.cartFood?.length > 0) {
@@ -265,11 +354,13 @@ async function run() {
           redirectTo = "customMadeBurgers";
         }
 
-        res.redirect(`http://localhost:5173/order-success/${redirectTo}`);
+        res.redirect(
+          `https://dine-dash-client.web.app/order-success/${redirectTo}`
+        );
       });
 
       app.post("/payment/failed", async (req, res) => {
-        res.redirect("http://localhost:5173/payment-cancelled");
+        res.redirect("https://dine-dash-client.web.app/payment-cancelled");
       });
     });
 
@@ -366,7 +457,7 @@ async function run() {
     app.post("/accept/partner-request", async (req, res) => {
       let data = req.body;
 
-      // await sendInstruction(data.email, data.name);
+      await sendInstruction(data.email, data.name);
 
       await partnerRequestsCollection.updateOne(
         { email: data.email },
@@ -388,7 +479,7 @@ async function run() {
       let email = req.body.email;
       let name = req.body.name;
 
-      // await PartnerRequestRejected(email, name);
+      await PartnerRequestRejected(email, name);
 
       await partnerRequestsCollection.updateOne(
         { email: email },
@@ -444,7 +535,7 @@ async function run() {
     app.post("/accept/rider-request", async (req, res) => {
       let data = req.body;
 
-      SendInstructionToRider(data.email, data.name);
+      await SendInstructionToRider(data.email, data.name);
 
       await riderRequestsCollection.updateOne(
         { email: data.email },
@@ -466,7 +557,7 @@ async function run() {
       let email = req.body.email;
       let name = req.body.name;
 
-      // RiderRequestRejected(email, name);
+      await RiderRequestRejected(email, name);
 
       await riderRequestsCollection.updateOne(
         { email: email },

@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 
-const PartnerRequestRejected = (to, name) => {
+const PartnerRequestRejected = async (to, name) => {
   let transporter = nodemailer.createTransport({
     service: "gmail",
     host: process.env.SMTP_HOST,
@@ -12,7 +12,7 @@ const PartnerRequestRejected = (to, name) => {
     },
   });
 
-  transporter.sendMail({
+  let mailData = {
     from: {
       name: "DineDash",
       address: process.env.SMTP_MAIL,
@@ -252,6 +252,17 @@ const PartnerRequestRejected = (to, name) => {
         </section>
       </body>
     </html>`,
+  };
+
+  await new Promise((resolve, reject) => {
+    transporter.sendMail(mailData, (err, info) => {
+      if (err) {
+        console.error(err);
+        reject(err);
+      } else {
+        resolve(info);
+      }
+    });
   });
 };
 

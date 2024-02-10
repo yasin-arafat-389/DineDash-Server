@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 
-const SendInstructionToRider = (to, name) => {
+const SendInstructionToRider = async (to, name) => {
   let transporter = nodemailer.createTransport({
     service: "gmail",
     host: process.env.SMTP_HOST,
@@ -12,7 +12,7 @@ const SendInstructionToRider = (to, name) => {
     },
   });
 
-  transporter.sendMail({
+  let mailData = {
     from: {
       name: "DineDash",
       address: process.env.SMTP_MAIL,
@@ -260,6 +260,17 @@ const SendInstructionToRider = (to, name) => {
         </section>
       </body>
     </html>`,
+  };
+
+  await new Promise((resolve, reject) => {
+    transporter.sendMail(mailData, (err, info) => {
+      if (err) {
+        console.error(err);
+        reject(err);
+      } else {
+        resolve(info);
+      }
+    });
   });
 };
 
