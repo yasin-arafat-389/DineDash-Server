@@ -182,6 +182,13 @@ async function run() {
       res.json({ grandTotal });
     });
 
+    // Get Delivery area of a rider
+    app.get("/delivery-area", async (req, res) => {
+      let name = req.query.name;
+      let result = await ridersCollection.findOne({ name: name });
+      res.send(result);
+    });
+
     // Get all restaurants and their details fro admin overview
     app.get("/restaurants-and-details", async (req, res) => {
       const allRestaurants = await restaurantsCollection.find().toArray();
@@ -276,15 +283,15 @@ async function run() {
 
       await ordersCollection.insertOne(order);
 
-      let detailsForInvoice = await ordersCollection.findOne({
-        randString: order.randString,
-      });
+      // let detailsForInvoice = await ordersCollection.findOne({
+      //   randString: order.randString,
+      // });
 
-      await sendInvoice(
-        detailsForInvoice,
-        detailsForInvoice.email,
-        detailsForInvoice.name
-      );
+      // await sendInvoice(
+      //   detailsForInvoice,
+      //   detailsForInvoice.email,
+      //   detailsForInvoice.name
+      // );
 
       res.send({ success: true });
     });
@@ -300,8 +307,8 @@ async function run() {
         total_amount: `${order.orderTotal}`,
         currency: "BDT",
         tran_id: transactionId,
-        success_url: `https://dine-dash-server.vercel.app/payment/success/${transactionId}/${order.randString}`,
-        fail_url: `https://dine-dash-server.vercel.app/payment/failed`,
+        success_url: `http://localhost:5000/payment/success/${transactionId}/${order.randString}`,
+        fail_url: `http://localhost:5000/payment/failed`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -341,11 +348,11 @@ async function run() {
 
         await ordersCollection.insertOne(orderToCommit);
 
-        await sendInvoice(
-          orderToCommit,
-          orderToCommit.email,
-          orderToCommit.name
-        );
+        // await sendInvoice(
+        //   orderToCommit,
+        //   orderToCommit.email,
+        //   orderToCommit.name
+        // );
 
         let redirectTo;
         if (orderToCommit.cartFood?.length > 0) {
@@ -354,13 +361,11 @@ async function run() {
           redirectTo = "customMadeBurgers";
         }
 
-        res.redirect(
-          `https://dine-dash-client.web.app/order-success/${redirectTo}`
-        );
+        res.redirect(`http://localhost:5173/order-success/${redirectTo}`);
       });
 
       app.post("/payment/failed", async (req, res) => {
-        res.redirect("https://dine-dash-client.web.app/payment-cancelled");
+        res.redirect("http://localhost:5173/payment-cancelled");
       });
     });
 
@@ -457,7 +462,7 @@ async function run() {
     app.post("/accept/partner-request", async (req, res) => {
       let data = req.body;
 
-      await sendInstruction(data.email, data.name);
+      // await sendInstruction(data.email, data.name);
 
       await partnerRequestsCollection.updateOne(
         { email: data.email },
@@ -479,7 +484,7 @@ async function run() {
       let email = req.body.email;
       let name = req.body.name;
 
-      await PartnerRequestRejected(email, name);
+      // await PartnerRequestRejected(email, name);
 
       await partnerRequestsCollection.updateOne(
         { email: email },
@@ -505,6 +510,11 @@ async function run() {
       );
 
       await restaurantsCollection.insertOne(insertToRestaurantsCollection);
+
+      await rolesCollection.insertOne({
+        email: data.email,
+        role: "restaurant-handler",
+      });
 
       res.send({ success: true });
     });
@@ -535,7 +545,7 @@ async function run() {
     app.post("/accept/rider-request", async (req, res) => {
       let data = req.body;
 
-      await SendInstructionToRider(data.email, data.name);
+      // await SendInstructionToRider(data.email, data.name);
 
       await riderRequestsCollection.updateOne(
         { email: data.email },
@@ -557,7 +567,7 @@ async function run() {
       let email = req.body.email;
       let name = req.body.name;
 
-      await RiderRequestRejected(email, name);
+      // await RiderRequestRejected(email, name);
 
       await riderRequestsCollection.updateOne(
         { email: email },
@@ -582,6 +592,8 @@ async function run() {
         name: data.name,
         phone: data.phone,
         region: data.region,
+        totalDelivered: 0,
+        totalEarned: 0,
       };
 
       await riderRequestsCollection.updateOne(
@@ -590,6 +602,8 @@ async function run() {
       );
 
       await ridersCollection.insertOne(insertToRidersCollection);
+
+      await rolesCollection.insertOne({ email: data.email, role: "rider" });
 
       res.send({ success: true });
     });
@@ -835,6 +849,194 @@ async function run() {
       await foodsCollection.deleteOne({ _id: objectId });
       res.send({ success: true });
     });
+
+    // Get incoming delivery data for rider
+    // app.get("/deliveries/incoming", async (req, res) => {
+    //   const region = req.query.region;
+
+    //   // Filter documents by region
+    //   const result = await ordersCollection.find({ region: region }).toArray();
+
+    //   // Create an array to store all objects from cartFood and burger arrays with status "cooking"
+    //   let incomingDeliveries = [];
+
+    //   // Loop through each document
+    //   result.forEach((order) => {
+    //     // Add objects from cartFood array with status "cooking" and isAcceptedByRider: false
+    //     if (order.cartFood && order.cartFood.length > 0) {
+    //       incomingDeliveries = incomingDeliveries.concat(
+    //         order.cartFood
+    //           .filter(
+    //             (item) =>
+    //               item.status === "cooking" && item.isAcceptedByRider === false
+    //           )
+    //           .map((item) => ({
+    //             ...item,
+    //             paymentMethod: order.paymentMethod,
+    //             phone: order.phone,
+    //             address: order.address,
+    //             orderType: "regular order",
+    //           }))
+    //       );
+    //     }
+    //     // Add objects from burger array with status "cooking" and isAcceptedByRider: false
+    //     if (order.burger && order.burger.length > 0) {
+    //       incomingDeliveries = incomingDeliveries.concat(
+    //         order.burger
+    //           .filter(
+    //             (item) =>
+    //               item.status === "cooking" && item.isAcceptedByRider === false
+    //           )
+    //           .map((item) => ({
+    //             ...item,
+    //             paymentMethod: order.paymentMethod,
+    //             restaurant: item.provider,
+    //             phone: order.phone,
+    //             address: order.address,
+    //             orderType: "custom burger",
+    //           }))
+    //       );
+    //     }
+    //   });
+
+    //   res.send(incomingDeliveries);
+    // });
+
+    // Accept a delivery as a rider
+    // app.post("/accept/delivery", async (req, res) => {
+    //   const orderId = req.query.orderId;
+    //   const type = req.query.type;
+    //   const riderName = req.query.riderName;
+
+    //   let updateQuery = {};
+    //   if (type === "regular order") {
+    //     updateQuery = {
+    //       $set: {
+    //         "cartFood.$[item].isAcceptedByRider": `accepted by ${riderName}`,
+    //       },
+    //     };
+    //   } else if (type === "custom burger") {
+    //     updateQuery = {
+    //       $set: {
+    //         "burger.$[item].isAcceptedByRider": `accepted by ${riderName}`,
+    //       },
+    //     };
+    //   }
+
+    //   const filter = {
+    //     $or: [{ "cartFood.orderId": orderId }, { "burger.orderId": orderId }],
+    //   };
+    //   const options = {
+    //     arrayFilters: [{ "item.orderId": orderId }],
+    //   };
+
+    //   const result = await ordersCollection.updateOne(
+    //     filter,
+    //     updateQuery,
+    //     options
+    //   );
+
+    //   res.send({ success: true });
+    // });
+
+    // Get accepted deliveries for a rider
+    // app.get("/deliveries/accepted", async (req, res) => {
+    //   const riderName = req.query.riderName;
+
+    //   // Query the ordersCollection to find accepted deliveries for the rider
+    //   const result = await ordersCollection
+    //     .find({
+    //       $or: [
+    //         { "cartFood.isAcceptedByRider": `accepted by ${riderName}` },
+    //         { "burger.isAcceptedByRider": `accepted by ${riderName}` },
+    //       ],
+    //     })
+    //     .toArray();
+
+    //   // Extract and combine the accepted deliveries from both cartFood and burger arrays
+    //   const acceptedDeliveries = result.reduce((acc, order) => {
+    //     if (order.cartFood) {
+    //       acc.push(
+    //         ...order.cartFood
+    //           .filter(
+    //             (item) => item.isAcceptedByRider === `accepted by ${riderName}`
+    //           )
+    //           .map((item) => ({
+    //             ...item,
+    //             restaurant: item.restaurant,
+    //             address: order.address,
+    //             phone: order.phone,
+    //             orderType: "regular order",
+    //             paymentMethod: order.paymentMethod,
+    //           }))
+    //       );
+    //     }
+    //     if (order.burger) {
+    //       acc.push(
+    //         ...order.burger
+    //           .filter(
+    //             (item) => item.isAcceptedByRider === `accepted by ${riderName}`
+    //           )
+    //           .map((item) => ({
+    //             ...item,
+    //             restaurant: item.provider,
+    //             address: order.address,
+    //             phone: order.phone,
+    //             orderType: "custom burger",
+    //             paymentMethod: order.paymentMethod,
+    //           }))
+    //       );
+    //     }
+    //     return acc;
+    //   }, []);
+
+    //   res.send(acceptedDeliveries);
+    // });
+
+    // Deliver order to the customer
+    // app.post("/deliver/food", async (req, res) => {
+    //   const orderId = req.query.orderId;
+    //   const type = req.query.type;
+    //   const riderName = req.query.riderName;
+
+    //   let updateQuery = {};
+    //   if (type === "regular order") {
+    //     updateQuery = {
+    //       $set: {
+    //         "cartFood.$[item].isAcceptedByRider": `delivered by ${riderName}`,
+    //         "cartFood.$[item].status": `completed`,
+    //       },
+    //     };
+    //   } else if (type === "custom burger") {
+    //     updateQuery = {
+    //       $set: {
+    //         "burger.$[item].isAcceptedByRider": `delivered by ${riderName}`,
+    //         "burger.$[item].status": `completed`,
+    //       },
+    //     };
+    //   }
+
+    //   const filter = {
+    //     $or: [{ "cartFood.orderId": orderId }, { "burger.orderId": orderId }],
+    //   };
+    //   const options = {
+    //     arrayFilters: [{ "item.orderId": orderId }],
+    //   };
+
+    //   const result = await ordersCollection.updateOne(
+    //     filter,
+    //     updateQuery,
+    //     options
+    //   );
+
+    //   await ridersCollection.findOneAndUpdate(
+    //     { name: riderName },
+    //     { $inc: { totalDelivered: 1, totalEarned: 50 } },
+    //     { returnOriginal: false }
+    //   );
+
+    //   res.send({ success: true });
+    // });
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
