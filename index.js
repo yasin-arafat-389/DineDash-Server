@@ -851,192 +851,192 @@ async function run() {
     });
 
     // Get incoming delivery data for rider
-    // app.get("/deliveries/incoming", async (req, res) => {
-    //   const region = req.query.region;
+    app.get("/deliveries/incoming", async (req, res) => {
+      const region = req.query.region;
 
-    //   // Filter documents by region
-    //   const result = await ordersCollection.find({ region: region }).toArray();
+      // Filter documents by region
+      const result = await ordersCollection.find({ region: region }).toArray();
 
-    //   // Create an array to store all objects from cartFood and burger arrays with status "cooking"
-    //   let incomingDeliveries = [];
+      // Create an array to store all objects from cartFood and burger arrays with status "cooking"
+      let incomingDeliveries = [];
 
-    //   // Loop through each document
-    //   result.forEach((order) => {
-    //     // Add objects from cartFood array with status "cooking" and isAcceptedByRider: false
-    //     if (order.cartFood && order.cartFood.length > 0) {
-    //       incomingDeliveries = incomingDeliveries.concat(
-    //         order.cartFood
-    //           .filter(
-    //             (item) =>
-    //               item.status === "cooking" && item.isAcceptedByRider === false
-    //           )
-    //           .map((item) => ({
-    //             ...item,
-    //             paymentMethod: order.paymentMethod,
-    //             phone: order.phone,
-    //             address: order.address,
-    //             orderType: "regular order",
-    //           }))
-    //       );
-    //     }
-    //     // Add objects from burger array with status "cooking" and isAcceptedByRider: false
-    //     if (order.burger && order.burger.length > 0) {
-    //       incomingDeliveries = incomingDeliveries.concat(
-    //         order.burger
-    //           .filter(
-    //             (item) =>
-    //               item.status === "cooking" && item.isAcceptedByRider === false
-    //           )
-    //           .map((item) => ({
-    //             ...item,
-    //             paymentMethod: order.paymentMethod,
-    //             restaurant: item.provider,
-    //             phone: order.phone,
-    //             address: order.address,
-    //             orderType: "custom burger",
-    //           }))
-    //       );
-    //     }
-    //   });
+      // Loop through each document
+      result.forEach((order) => {
+        // Add objects from cartFood array with status "cooking" and isAcceptedByRider: false
+        if (order.cartFood && order.cartFood.length > 0) {
+          incomingDeliveries = incomingDeliveries.concat(
+            order.cartFood
+              .filter(
+                (item) =>
+                  item.status === "cooking" && item.isAcceptedByRider === false
+              )
+              .map((item) => ({
+                ...item,
+                paymentMethod: order.paymentMethod,
+                phone: order.phone,
+                address: order.address,
+                orderType: "regular order",
+              }))
+          );
+        }
+        // Add objects from burger array with status "cooking" and isAcceptedByRider: false
+        if (order.burger && order.burger.length > 0) {
+          incomingDeliveries = incomingDeliveries.concat(
+            order.burger
+              .filter(
+                (item) =>
+                  item.status === "cooking" && item.isAcceptedByRider === false
+              )
+              .map((item) => ({
+                ...item,
+                paymentMethod: order.paymentMethod,
+                restaurant: item.provider,
+                phone: order.phone,
+                address: order.address,
+                orderType: "custom burger",
+              }))
+          );
+        }
+      });
 
-    //   res.send(incomingDeliveries);
-    // });
+      res.send(incomingDeliveries);
+    });
 
     // Accept a delivery as a rider
-    // app.post("/accept/delivery", async (req, res) => {
-    //   const orderId = req.query.orderId;
-    //   const type = req.query.type;
-    //   const riderName = req.query.riderName;
+    app.post("/accept/delivery", async (req, res) => {
+      const orderId = req.query.orderId;
+      const type = req.query.type;
+      const riderName = req.query.riderName;
 
-    //   let updateQuery = {};
-    //   if (type === "regular order") {
-    //     updateQuery = {
-    //       $set: {
-    //         "cartFood.$[item].isAcceptedByRider": `accepted by ${riderName}`,
-    //       },
-    //     };
-    //   } else if (type === "custom burger") {
-    //     updateQuery = {
-    //       $set: {
-    //         "burger.$[item].isAcceptedByRider": `accepted by ${riderName}`,
-    //       },
-    //     };
-    //   }
+      let updateQuery = {};
+      if (type === "regular order") {
+        updateQuery = {
+          $set: {
+            "cartFood.$[item].isAcceptedByRider": `accepted by ${riderName}`,
+          },
+        };
+      } else if (type === "custom burger") {
+        updateQuery = {
+          $set: {
+            "burger.$[item].isAcceptedByRider": `accepted by ${riderName}`,
+          },
+        };
+      }
 
-    //   const filter = {
-    //     $or: [{ "cartFood.orderId": orderId }, { "burger.orderId": orderId }],
-    //   };
-    //   const options = {
-    //     arrayFilters: [{ "item.orderId": orderId }],
-    //   };
+      const filter = {
+        $or: [{ "cartFood.orderId": orderId }, { "burger.orderId": orderId }],
+      };
+      const options = {
+        arrayFilters: [{ "item.orderId": orderId }],
+      };
 
-    //   const result = await ordersCollection.updateOne(
-    //     filter,
-    //     updateQuery,
-    //     options
-    //   );
+      const result = await ordersCollection.updateOne(
+        filter,
+        updateQuery,
+        options
+      );
 
-    //   res.send({ success: true });
-    // });
+      res.send({ success: true });
+    });
 
     // Get accepted deliveries for a rider
-    // app.get("/deliveries/accepted", async (req, res) => {
-    //   const riderName = req.query.riderName;
+    app.get("/deliveries/accepted", async (req, res) => {
+      const riderName = req.query.riderName;
 
-    //   // Query the ordersCollection to find accepted deliveries for the rider
-    //   const result = await ordersCollection
-    //     .find({
-    //       $or: [
-    //         { "cartFood.isAcceptedByRider": `accepted by ${riderName}` },
-    //         { "burger.isAcceptedByRider": `accepted by ${riderName}` },
-    //       ],
-    //     })
-    //     .toArray();
+      // Query the ordersCollection to find accepted deliveries for the rider
+      const result = await ordersCollection
+        .find({
+          $or: [
+            { "cartFood.isAcceptedByRider": `accepted by ${riderName}` },
+            { "burger.isAcceptedByRider": `accepted by ${riderName}` },
+          ],
+        })
+        .toArray();
 
-    //   // Extract and combine the accepted deliveries from both cartFood and burger arrays
-    //   const acceptedDeliveries = result.reduce((acc, order) => {
-    //     if (order.cartFood) {
-    //       acc.push(
-    //         ...order.cartFood
-    //           .filter(
-    //             (item) => item.isAcceptedByRider === `accepted by ${riderName}`
-    //           )
-    //           .map((item) => ({
-    //             ...item,
-    //             restaurant: item.restaurant,
-    //             address: order.address,
-    //             phone: order.phone,
-    //             orderType: "regular order",
-    //             paymentMethod: order.paymentMethod,
-    //           }))
-    //       );
-    //     }
-    //     if (order.burger) {
-    //       acc.push(
-    //         ...order.burger
-    //           .filter(
-    //             (item) => item.isAcceptedByRider === `accepted by ${riderName}`
-    //           )
-    //           .map((item) => ({
-    //             ...item,
-    //             restaurant: item.provider,
-    //             address: order.address,
-    //             phone: order.phone,
-    //             orderType: "custom burger",
-    //             paymentMethod: order.paymentMethod,
-    //           }))
-    //       );
-    //     }
-    //     return acc;
-    //   }, []);
+      // Extract and combine the accepted deliveries from both cartFood and burger arrays
+      const acceptedDeliveries = result.reduce((acc, order) => {
+        if (order.cartFood) {
+          acc.push(
+            ...order.cartFood
+              .filter(
+                (item) => item.isAcceptedByRider === `accepted by ${riderName}`
+              )
+              .map((item) => ({
+                ...item,
+                restaurant: item.restaurant,
+                address: order.address,
+                phone: order.phone,
+                orderType: "regular order",
+                paymentMethod: order.paymentMethod,
+              }))
+          );
+        }
+        if (order.burger) {
+          acc.push(
+            ...order.burger
+              .filter(
+                (item) => item.isAcceptedByRider === `accepted by ${riderName}`
+              )
+              .map((item) => ({
+                ...item,
+                restaurant: item.provider,
+                address: order.address,
+                phone: order.phone,
+                orderType: "custom burger",
+                paymentMethod: order.paymentMethod,
+              }))
+          );
+        }
+        return acc;
+      }, []);
 
-    //   res.send(acceptedDeliveries);
-    // });
+      res.send(acceptedDeliveries);
+    });
 
     // Deliver order to the customer
-    // app.post("/deliver/food", async (req, res) => {
-    //   const orderId = req.query.orderId;
-    //   const type = req.query.type;
-    //   const riderName = req.query.riderName;
+    app.post("/deliver/food", async (req, res) => {
+      const orderId = req.query.orderId;
+      const type = req.query.type;
+      const riderName = req.query.riderName;
 
-    //   let updateQuery = {};
-    //   if (type === "regular order") {
-    //     updateQuery = {
-    //       $set: {
-    //         "cartFood.$[item].isAcceptedByRider": `delivered by ${riderName}`,
-    //         "cartFood.$[item].status": `completed`,
-    //       },
-    //     };
-    //   } else if (type === "custom burger") {
-    //     updateQuery = {
-    //       $set: {
-    //         "burger.$[item].isAcceptedByRider": `delivered by ${riderName}`,
-    //         "burger.$[item].status": `completed`,
-    //       },
-    //     };
-    //   }
+      let updateQuery = {};
+      if (type === "regular order") {
+        updateQuery = {
+          $set: {
+            "cartFood.$[item].isAcceptedByRider": `delivered by ${riderName}`,
+            "cartFood.$[item].status": `completed`,
+          },
+        };
+      } else if (type === "custom burger") {
+        updateQuery = {
+          $set: {
+            "burger.$[item].isAcceptedByRider": `delivered by ${riderName}`,
+            "burger.$[item].status": `completed`,
+          },
+        };
+      }
 
-    //   const filter = {
-    //     $or: [{ "cartFood.orderId": orderId }, { "burger.orderId": orderId }],
-    //   };
-    //   const options = {
-    //     arrayFilters: [{ "item.orderId": orderId }],
-    //   };
+      const filter = {
+        $or: [{ "cartFood.orderId": orderId }, { "burger.orderId": orderId }],
+      };
+      const options = {
+        arrayFilters: [{ "item.orderId": orderId }],
+      };
 
-    //   const result = await ordersCollection.updateOne(
-    //     filter,
-    //     updateQuery,
-    //     options
-    //   );
+      const result = await ordersCollection.updateOne(
+        filter,
+        updateQuery,
+        options
+      );
 
-    //   await ridersCollection.findOneAndUpdate(
-    //     { name: riderName },
-    //     { $inc: { totalDelivered: 1, totalEarned: 50 } },
-    //     { returnOriginal: false }
-    //   );
+      await ridersCollection.findOneAndUpdate(
+        { name: riderName },
+        { $inc: { totalDelivered: 1, totalEarned: 50 } },
+        { returnOriginal: false }
+      );
 
-    //   res.send({ success: true });
-    // });
+      res.send({ success: true });
+    });
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
