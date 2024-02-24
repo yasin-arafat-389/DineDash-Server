@@ -1046,37 +1046,37 @@ async function run() {
     });
 
     // Insert user review to the database
-    // app.post("/submit/review", async (req, res) => {
-    //   let data = req.body;
+    app.post("/submit/review", async (req, res) => {
+      let data = req.body;
 
-    //   await ordersCollection.updateOne(
-    //     {
-    //       "cartFood.orderId": data.orderId,
-    //     },
-    //     {
-    //       $set: {
-    //         "cartFood.$.reviewed": true,
-    //       },
-    //     }
-    //   );
+      await ordersCollection.updateOne(
+        {
+          "cartFood.orderId": data.orderId,
+        },
+        {
+          $set: {
+            "cartFood.$.reviewed": true,
+          },
+        }
+      );
 
-    //   await reviewsCollection.insertOne({
-    //     identifier: data.identifier,
-    //     review: data.review,
-    //     userName: data.user,
-    //     profileImage: data.profileImage,
-    //     date: data.date,
-    //   });
+      await reviewsCollection.insertOne({
+        identifier: data.identifier,
+        review: data.review,
+        userName: data.user,
+        profileImage: data.profileImage,
+        date: data.date,
+      });
 
-    //   res.send({ success: true });
-    // });
+      res.send({ success: true });
+    });
 
     // Get all reviews for a specific food
-    // app.get("/reviews/foods", async (req, res) => {
-    //   let id = req.query.id;
-    //   let results = await reviewsCollection.find({ identifier: id }).toArray();
-    //   res.send(results);
-    // });
+    app.get("/reviews/foods", async (req, res) => {
+      let id = req.query.id;
+      let results = await reviewsCollection.find({ identifier: id }).toArray();
+      res.send(results);
+    });
 
     // Send verification code to user gmail
     app.post("/send/verificationCode", async (req, res) => {
