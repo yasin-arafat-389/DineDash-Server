@@ -37,6 +37,9 @@ const {
 const {
   RiderRequestRejected,
 } = require("./Utility/RiderRequestRejected/RiderRequestRejected");
+const {
+  SendVerificationCode,
+} = require("./Utility/SendVerificationCode/SendVerificationCode");
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.gef2z8f.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -67,6 +70,10 @@ async function run() {
     .collection("riderRequests");
   const rolesCollection = client.db("DineDash").collection("userRoles");
   const ridersCollection = client.db("DineDash").collection("riders");
+  const reviewsCollection = client.db("DineDash").collection("reviews");
+  const verifiedEmailsCollection = client
+    .db("DineDash")
+    .collection("verifiedEmails");
 
   try {
     // Get Provider names and images
@@ -1036,6 +1043,107 @@ async function run() {
       );
 
       res.send({ success: true });
+    });
+
+    // Insert user review to the database
+    // app.post("/submit/review", async (req, res) => {
+    //   let data = req.body;
+
+    //   await ordersCollection.updateOne(
+    //     {
+    //       "cartFood.orderId": data.orderId,
+    //     },
+    //     {
+    //       $set: {
+    //         "cartFood.$.reviewed": true,
+    //       },
+    //     }
+    //   );
+
+    //   await reviewsCollection.insertOne({
+    //     identifier: data.identifier,
+    //     review: data.review,
+    //     userName: data.user,
+    //     profileImage: data.profileImage,
+    //     date: data.date,
+    //   });
+
+    //   res.send({ success: true });
+    // });
+
+    // Get all reviews for a specific food
+    // app.get("/reviews/foods", async (req, res) => {
+    //   let id = req.query.id;
+    //   let results = await reviewsCollection.find({ identifier: id }).toArray();
+    //   res.send(results);
+    // });
+
+    // Send verification code to user gmail
+    app.post("/send/verificationCode", async (req, res) => {
+      let email = req.body.email;
+      let name = req.body.name;
+
+      function verificationCode() {
+        const characters =
+          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let result = "";
+        for (let i = 0; i < 6; i++) {
+          const randomIndex = Math.floor(Math.random() * characters.length);
+          result += characters.charAt(randomIndex);
+        }
+        return result;
+      }
+
+      const code = verificationCode();
+
+      // await SendVerificationCode(email, name, code);
+
+      await verifiedEmailsCollection.insertOne({
+        email: email,
+        verificationCode: code,
+        isVerified: false,
+      });
+
+      res.send({ success: true });
+    });
+
+    // Verify user gmail and change status
+    app.post("/verify/gmail", async (req, res) => {
+      let verificationCode = req.body.verificationCode;
+
+      let emailToVerify = await verifiedEmailsCollection.findOne({
+        verificationCode: verificationCode,
+      });
+
+      if (!emailToVerify) {
+        return res.send({ error: "email not found" });
+      } else if (emailToVerify.isVerified === true) {
+        return res.send({ error: "email already verified" });
+      }
+
+      await verifiedEmailsCollection.findOneAndUpdate(
+        { verificationCode: verificationCode },
+        { $set: { isVerified: true } }
+      );
+
+      res.send({ success: true });
+    });
+
+    // Check if user gmail is verified
+    app.post("/check/verificationStatus", async (req, res) => {
+      let email = req.body.email;
+
+      let emailToCheck = await verifiedEmailsCollection.findOne({
+        email: email,
+      });
+
+      if (!emailToCheck) {
+        return res.send({ status: "unregistered user" });
+      } else if (emailToCheck.isVerified === false) {
+        return res.send({ status: "not verified yet" });
+      } else {
+        return res.send({ status: "verified" });
+      }
     });
 
     console.log(
