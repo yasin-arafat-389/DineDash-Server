@@ -253,6 +253,25 @@ async function run() {
       res.json({ result, foodCounts });
     });
 
+    // Get single food details
+    app.get("/food/details", async (req, res) => {
+      try {
+        let id = req.query.id;
+        if (!id) {
+          return res.status(400).send({ error: "Invalid ID provided" });
+        }
+        let foodId = new ObjectId(id);
+        let result = await foodsCollection.findOne({ _id: foodId });
+        if (!result) {
+          return res.status(404).send({ error: "Food not found" });
+        }
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching food details:", error);
+        res.status(500).send({ error: "Internal server error" });
+      }
+    });
+
     // Get foods for browse by category
     app.get("/foods/category", async (req, res) => {
       const category = req.query.category;
@@ -1087,7 +1106,7 @@ async function run() {
         const characters =
           "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
         let result = "";
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 10; i++) {
           const randomIndex = Math.floor(Math.random() * characters.length);
           result += characters.charAt(randomIndex);
         }
