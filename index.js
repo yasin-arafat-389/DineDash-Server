@@ -74,6 +74,9 @@ async function run() {
   const verifiedEmailsCollection = client
     .db("DineDash")
     .collection("verifiedEmails");
+  const offersCollection = client.db("DineDash").collection("offers");
+
+  offersCollection.createIndex({ expiresIn: 1 }, { expireAfterSeconds: 0 });
 
   try {
     // Get Provider names and images
@@ -309,15 +312,15 @@ async function run() {
 
       await ordersCollection.insertOne(order);
 
-      // let detailsForInvoice = await ordersCollection.findOne({
-      //   randString: order.randString,
-      // });
+      let detailsForInvoice = await ordersCollection.findOne({
+        randString: order.randString,
+      });
 
-      // await sendInvoice(
-      //   detailsForInvoice,
-      //   detailsForInvoice.email,
-      //   detailsForInvoice.name
-      // );
+      await sendInvoice(
+        detailsForInvoice,
+        detailsForInvoice.email,
+        detailsForInvoice.name
+      );
 
       res.send({ success: true });
     });
@@ -374,11 +377,11 @@ async function run() {
 
         await ordersCollection.insertOne(orderToCommit);
 
-        // await sendInvoice(
-        //   orderToCommit,
-        //   orderToCommit.email,
-        //   orderToCommit.name
-        // );
+        await sendInvoice(
+          orderToCommit,
+          orderToCommit.email,
+          orderToCommit.name
+        );
 
         let redirectTo;
         if (orderToCommit.cartFood?.length > 0) {
@@ -488,7 +491,7 @@ async function run() {
     app.post("/accept/partner-request", async (req, res) => {
       let data = req.body;
 
-      // await sendInstruction(data.email, data.name);
+      await sendInstruction(data.email, data.name);
 
       await partnerRequestsCollection.updateOne(
         { email: data.email },
@@ -510,7 +513,7 @@ async function run() {
       let email = req.body.email;
       let name = req.body.name;
 
-      // await PartnerRequestRejected(email, name);
+      await PartnerRequestRejected(email, name);
 
       await partnerRequestsCollection.updateOne(
         { email: email },
@@ -571,7 +574,7 @@ async function run() {
     app.post("/accept/rider-request", async (req, res) => {
       let data = req.body;
 
-      // await SendInstructionToRider(data.email, data.name);
+      await SendInstructionToRider(data.email, data.name);
 
       await riderRequestsCollection.updateOne(
         { email: data.email },
@@ -1082,6 +1085,7 @@ async function run() {
       await reviewsCollection.insertOne({
         identifier: data.identifier,
         review: data.review,
+        rating: data.rating,
         userName: data.user,
         profileImage: data.profileImage,
         date: data.date,
@@ -1115,7 +1119,7 @@ async function run() {
 
       const code = verificationCode();
 
-      // await SendVerificationCode(email, name, code);
+      await SendVerificationCode(email, name, code);
 
       await verifiedEmailsCollection.insertOne({
         email: email,
@@ -1163,6 +1167,94 @@ async function run() {
       } else {
         return res.send({ status: "verified" });
       }
+    });
+
+    // Create new coupon
+    app.post("/create-offer", async (req, res) => {
+      const foodId = await offersCollection.findOne({
+        "selectedFood._id": req.body.selectedFood._id,
+      });
+
+      if (!foodId) {
+        req.body.expiresIn = new Date(req.body.expiresIn);
+        await offersCollection.insertOne(req.body);
+      }
+
+      if (foodId?.selectedFood?._id === req.body.selectedFood._id) {
+        return res.json({
+          success: false,
+          message: "There is already an active coupon for this food!!",
+        });
+      }
+
+      return res.send({ success: true });
+    });
+
+    // Get coupons for individual vendors
+    app.get("/get-coupons", async (req, res) => {
+      if (req.query.allCoupons) {
+        const result = await offersCollection.find().toArray();
+        return res.send(result);
+      }
+
+      if (req.query.restaurant) {
+        const result = await offersCollection
+          .find({
+            restaurant: req.query.restaurant,
+          })
+          .toArray();
+
+        return res.send(result);
+      }
+
+      if (req.query.foodId) {
+        const result = await offersCollection.findOne({
+          "selectedFood._id": req.query.foodId,
+        });
+
+        console.log(result);
+
+        return res.send(result);
+      }
+
+      return res.send({ success: false });
+    });
+
+    // Delete an offer
+    app.delete("/delete-coupon", async (req, res) => {
+      await offersCollection.deleteOne({
+        _id: new ObjectId(req.query.id),
+      });
+
+      return res.send({ success: true });
+    });
+
+    // Apply coupon
+    app.post("/apply-coupon", async (req, res) => {
+      let email = req.query.email;
+      let couponId = req.query.couponId;
+
+      let coupon = await offersCollection.findOne({
+        _id: new ObjectId(couponId),
+      });
+
+      let alreadyApplied = coupon.couponUsedBy.some(
+        (user) => user.email === email
+      );
+
+      if (alreadyApplied) {
+        return res.send({
+          success: false,
+          message: "Coupon already used by this user",
+        });
+      }
+
+      await offersCollection.updateOne(
+        { _id: new ObjectId(couponId) },
+        { $push: { couponUsedBy: { email } } }
+      );
+
+      return res.send({ success: true });
     });
 
     console.log(
